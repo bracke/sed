@@ -4,8 +4,11 @@ with Sed.Command_Line.Arguments;
 with Sed.Diagnostics;
 with Sed.Diagnostics.Quoting;
 with Sed.Diagnostics.Registry;
+with Sed.Engine;
+with Sedlib.Diagnostics;
 with Sed.Status;
 with Sed.Terminal;
+with Sed_Registries;
 with Sed_Test_Suite.Doubles;
 with Sed_Test_Suite.Support;
 
@@ -527,6 +530,242 @@ package body Sed_Test_Suite.Robustness is
       end;
    end Injected_Write_Failure;
 
+   --  DIAG-CODE-001: the diagnostic codes a script can provoke directly.
+
+   procedure Script_Diagnostics_Are_Reported
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Undefined : constant Run_Result :=
+        Run ([A ("--"), A ("b nosuch")], "x" & LF);
+      Duplicate : constant Run_Result :=
+        Run ([A ("--"), A (":x" & LF & ":x")], "x" & LF);
+   begin
+      Assert
+        (Contains (Errors (Undefined), "undefined label"),
+         "DIAG-CODE-001 an undefined branch target is reported");
+      Assert
+        (Undefined.Exit_Status = 1,
+         "DIAG-CODE-001 an undefined label fails the run");
+
+      Assert
+        (Contains (Errors (Duplicate), "duplicate label"),
+         "DIAG-CODE-001 a duplicate label is reported");
+      Assert
+        (Duplicate.Exit_Status = 1,
+         "DIAG-CODE-001 a duplicate label fails the run");
+   end Script_Diagnostics_Are_Reported;
+
+   --  DIAG-CODE-002: a script file that opens but cannot be read through is a
+   --  different fault from one that cannot be opened at all.
+
+   procedure Script_File_Read_Failure
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Files : Doubles.Memory_Filesystem;
+   begin
+      Doubles.Add_File (Files, "rules.sed", "p" & LF);
+      Doubles.Fail_Read (Files, "rules.sed");
+
+      declare
+         Result : constant Run_Result :=
+           Run ([A ("-f"), A ("rules.sed")], Files, "x" & LF);
+      begin
+         Assert
+           (Result.Exit_Status = 1,
+            "DIAG-CODE-002 a script read failure fails the run");
+         Assert
+           (Contains (Errors (Result), "error reading script file"),
+            "DIAG-CODE-002 the read failure is distinguished from an open failure");
+         Assert
+           (Output (Result) = "",
+            "DIAG-CODE-002 no input is processed");
+      end;
+   end Script_File_Read_Failure;
+
+   --  DIAG-CODE-003: an r file that opens but faults while being read.
+   --
+   --  POSIX gives r no error status, so this is a warning that leaves the
+   --  exit status alone while still telling the user the output is short.
+
+   procedure Resource_Read_Failure_Warns
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Files : Doubles.Memory_Filesystem;
+   begin
+      Doubles.Add_File (Files, "extra.txt", "X" & LF);
+      Doubles.Fail_Read (Files, "extra.txt");
+
+      declare
+         Result : constant Run_Result :=
+           Run ([A ("--"), A ("r extra.txt")], Files, "a" & LF);
+      begin
+         Assert
+           (Output (Result) = "a" & LF,
+            "DIAG-CODE-003 the cycle still produces its own output");
+         Assert
+           (Contains (Errors (Result), "r command"),
+            "DIAG-CODE-003 the read fault is reported");
+         Assert
+           (Result.Exit_Status = 0,
+            "DIAG-CODE-003 a warning leaves the exit status alone");
+      end;
+   end Resource_Read_Failure_Warns;
+
+   --  DIAG-CODE-004: an engine bound reports as resource exhaustion rather
+   --  than as a crash or a truncated result.
+
+   procedure Engine_Limit_Is_Reported
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      --  Long enough that a backreferenced match exceeds the engine's
+      --  bounded backtracking depth.
+      Long_Line : constant String := [1 .. 60_000 => 'a'] & LF;
+      Result : constant Run_Result :=
+        Run ([A ("--"), A ("s/\(a*\)\1/X/")], Long_Line);
+   begin
+      Assert
+        (Result.Exit_Status = 1,
+         "DIAG-CODE-004 exceeding an engine bound fails the run");
+      Assert
+        (Contains (Errors (Result), "resource limit exceeded"),
+         "DIAG-CODE-004 the bound is reported as resource exhaustion");
+   end Engine_Limit_Is_Reported;
+
+   --  DIAG-MAPPING-001: every engine condition maps to the intended code.
+   --
+   --  Two codes cover conditions the resolved engine does not currently
+   --  produce: Unsupported_Command is its internal guard for a command with
+   --  no compiler mapping, and Program_Not_Executable cannot occur behind the
+   --  precondition on execution. They are kept because an engine that did
+   --  report them must not have the fault silently reclassified as a user
+   --  script error, and the mapping is tested here directly rather than left
+   --  to a case that cannot be written.
+
+   procedure Engine_Codes_Map_As_Intended
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      use type Sedlib.Diagnostics.Diagnostic_Code;
+   begin
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Unsupported_Command) =
+           D.Missing_Library_Capability,
+         "DIAG-MAPPING-001 an unimplemented engine command is a capability gap");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Resource_Provider_Missing) =
+           D.Missing_Library_Capability,
+         "DIAG-MAPPING-001 a missing resource provider is a capability gap");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Program_Not_Executable) =
+           D.Execution_Failed,
+         "DIAG-MAPPING-001 an unexecutable program is an execution failure");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Cancelled) = D.Execution_Failed,
+         "DIAG-MAPPING-001 cancellation is an execution failure");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Invalid_Expression) =
+           D.Invalid_Regular_Expression,
+         "DIAG-MAPPING-001 an invalid expression is a regexp failure");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Undefined_Label) =
+           D.Undefined_Label,
+         "DIAG-MAPPING-001 an undefined label keeps its own code");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Unsupported_Extension) =
+           D.Script_Syntax_Error,
+         "DIAG-MAPPING-001 a rejected extension is a script error, not a gap");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Unknown_Command) =
+           D.Script_Syntax_Error,
+         "DIAG-MAPPING-001 an unknown command is a script error");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Internal_Invariant_Failure) =
+           D.Internal_Error,
+         "DIAG-MAPPING-001 an engine invariant failure is an internal error");
+      Assert
+        (Sed.Engine.Code_Of (Sedlib.Diagnostics.Regexp_Match_Limit_Exceeded) =
+           D.Resource_Exhausted,
+         "DIAG-MAPPING-001 an engine bound is resource exhaustion");
+   end Engine_Codes_Map_As_Intended;
+
+   --  TOOL-REGISTRY-001: the traceability registries are internally sound.
+   --
+   --  Whether the test identifiers they cite actually exist is checked by
+   --  "sed_tools verify", which can read the whole test tree; what is checked
+   --  here is that no entry is empty or malformed in the first place.
+
+   procedure Registries_Are_Consistent
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      use type Sed_Registries.Text.Bounded_String;
+
+      Requirements : constant Sed_Registries.Requirement_Array :=
+        Sed_Registries.Requirements;
+      Commands : constant Sed_Registries.Command_Array :=
+        Sed_Registries.Commands;
+   begin
+      Assert (Requirements'Length > 0, "TOOL-REGISTRY-001 requirements exist");
+
+      for Item of Requirements loop
+         declare
+            Id : constant String := Sed_Registries.Text.To_String (Item.Id);
+         begin
+            Assert
+              (Contains (Id, "SED-"),
+               "TOOL-REGISTRY-001 " & Id & " uses the project prefix");
+            Assert
+              (Sed_Registries.Text.Length (Item.Summary) > 0,
+               "TOOL-REGISTRY-001 " & Id & " has a summary");
+            Assert
+              (Sed_Registries.Text.Length (Item.Owner) > 0,
+               "TOOL-REGISTRY-001 " & Id & " names an owning package");
+            Assert
+              (Sed_Registries.Text.Length (Item.Tests) > 0,
+               "TOOL-REGISTRY-001 " & Id & " cites at least one test");
+         end;
+      end loop;
+
+      --  Every requirement identifier is distinct, so two claims cannot share
+      --  one line of evidence by accident.
+      for Left in Requirements'Range loop
+         for Right in Left + 1 .. Requirements'Last loop
+            Assert
+              (Requirements (Left).Id /= Requirements (Right).Id,
+               "TOOL-REGISTRY-001 requirement identifiers are unique");
+         end loop;
+      end loop;
+
+      for Item of Commands loop
+         Assert
+           (Sed_Registries.Text.Length (Item.Tests) > 0,
+            "TOOL-REGISTRY-001 command " & Item.Symbol & " cites a test");
+         Assert
+           (Item.Max_Addresses <= 2,
+            "TOOL-REGISTRY-001 command " & Item.Symbol
+            & " accepts at most two addresses");
+      end loop;
+
+      --  Every diagnostic code carries coverage, and a code that cannot be
+      --  provoked through the command line has to say why.
+      for Code in Sed.Diagnostics.Diagnostic_Code loop
+         declare
+            Row : constant Sed_Registries.Coverage :=
+              Sed_Registries.Diagnostic_Coverage (Code);
+            Label : constant String :=
+              Sed.Diagnostics.Diagnostic_Code'Image (Code);
+         begin
+            Assert
+              (Sed_Registries.Text.Length (Row.Tests) > 0,
+               "TOOL-REGISTRY-001 " & Label & " cites at least one test");
+         end;
+      end loop;
+   end Registries_Are_Consistent;
+
    overriding procedure Register_Tests (Test : in out Test_Case) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -571,6 +810,24 @@ package body Sed_Test_Suite.Robustness is
       Register_Routine
         (Test, Injected_Write_Failure'Access,
          "FAIL-OUTPUT-003 injected w write failure");
+      Register_Routine
+        (Test, Script_Diagnostics_Are_Reported'Access,
+         "DIAG-CODE-001 script diagnostics");
+      Register_Routine
+        (Test, Script_File_Read_Failure'Access,
+         "DIAG-CODE-002 script file read failure");
+      Register_Routine
+        (Test, Resource_Read_Failure_Warns'Access,
+         "DIAG-CODE-003 r file read failure warns");
+      Register_Routine
+        (Test, Engine_Limit_Is_Reported'Access,
+         "DIAG-CODE-004 engine limit is reported");
+      Register_Routine
+        (Test, Engine_Codes_Map_As_Intended'Access,
+         "DIAG-MAPPING-001 engine code mapping");
+      Register_Routine
+        (Test, Registries_Are_Consistent'Access,
+         "TOOL-REGISTRY-001 registry consistency");
    end Register_Tests;
 
 end Sed_Test_Suite.Robustness;

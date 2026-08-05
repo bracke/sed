@@ -69,6 +69,7 @@ so a script written for GNU `sed` fails loudly instead of behaving differently.
 | `a text` on one line | Extension | covered by sedlib |
 | `:` `b` `t` | Conforming | CMD-BRANCH-001 |
 | `y` | Conforming | CMD-TRANSLIT-001 |
+| `s` | Conforming | SUB-001, SUB-002, SUB-003 |
 | `r` | Conforming | FILE-001 |
 | `w`, `s///w` | Conforming | FILE-002, SCRIPT-WRITE-002 |
 | `{` `}` and `!` | Conforming | CMD-GROUP-001 |
