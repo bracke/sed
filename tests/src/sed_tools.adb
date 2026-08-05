@@ -526,8 +526,13 @@ procedure Sed_Tools is
         Files.Join (Dist, "sed-" & Version & "-checksums.txt");
 
       --  Run a shell pipeline from the repository root.
+      --
+      --  Quiet is deliberately off: it would append its own redirection after
+      --  the command's, and the last redirection of a stream is the one that
+      --  takes effect, so every artefact these pipelines write would be
+      --  created empty. The commands below redirect everything themselves.
       function Shell (Command : String) return Integer
-        is (Processes.Run_Shell_In_Directory (Root, Command, Quiet => True));
+        is (Processes.Run_Shell_In_Directory (Root, Command, Quiet => False));
 
       --  Run the staged executable and compare its output byte for byte.
       procedure Smoke
@@ -676,7 +681,14 @@ procedure Sed_Tools is
                "the archive contains " & U.To_String (Item));
          end loop;
 
-         --  Build output must never ship.
+         --  Build output must never ship. An absent or empty listing would
+         --  make every one of these pass for the wrong reason, so the listing
+         --  has to be real before its contents mean anything.
+         Check
+           (Files.File_Exists (Listing)
+              and then Files.Read_Raw_File (Listing)'Length > 0,
+            "the archive listing is not empty");
+
          for Excluded of Files.Name_List'
            [U.To_Unbounded_String ("/obj/"),
             U.To_Unbounded_String ("/bin/"),
