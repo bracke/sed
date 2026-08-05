@@ -700,11 +700,40 @@ procedure Sed_Tools is
          end loop;
       end;
 
+      --  Hash from inside the artefact directory so the recorded name is the
+      --  simple one a consumer will have, with no path to strip afterwards.
       Check
-        (Shell
-           ("sha256sum " & Processes.Shell_Quote (Archive)
-            & " | sed 's|.*/||' > " & Processes.Shell_Quote (Checksums)) = 0,
+        (Processes.Run_Shell_In_Directory
+           (Dist,
+            "sha256sum " & Ada.Directories.Simple_Name (Archive) & " > "
+            & Ada.Directories.Simple_Name (Checksums)) = 0,
          "checksums were written");
+
+      --  A zero exit status only says the command ran. What matters is that
+      --  the file actually holds a hash.
+      declare
+         Recorded : constant String :=
+           (if Files.File_Exists (Checksums)
+            then Files.Read_Raw_File (Checksums)
+            else "");
+         Digits_Seen : Natural := 0;
+      begin
+         for Item of Recorded loop
+            exit when Item = ' ';
+
+            if Item in '0' .. '9' | 'a' .. 'f' then
+               Digits_Seen := Digits_Seen + 1;
+            end if;
+         end loop;
+
+         Check
+           (Digits_Seen = 64,
+            "the checksum file records a SHA-256 digest");
+         Check
+           (Files.File_Contains
+              (Checksums, Ada.Directories.Simple_Name (Archive)),
+            "the checksum file names the archive");
+      end;
 
       declare
          Commit : constant String :=
