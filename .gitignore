@@ -1,0 +1,38 @@
+# Alire-generated local state
+/alire/
+/.alire/
+/alire.lock
+/config/
+
+# Root build outputs
+/bin/
+/obj/
+/lib/
+/dist/
+
+# Test crate generated state and build outputs
+/tests/alire/
+/tests/config/
+/tests/obj/
+/tests/bin/
+/tests/alire.lock
+
+# Generated release artefacts
+/tests/generated/
+
+# GNAT/GPRbuild byproducts
+*.ali
+*.o
+*.a
+*.bexch
+*.lexch
+*.cswi
+*.stdout
+*.stderr
+
+# Editor and temporary files
+*.bak
+*.tmp
+*.swp
+*.kate-swp
+*~

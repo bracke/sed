@@ -1,0 +1,41 @@
+name = "sed"
+description = "POSIX-oriented Ada command-line stream editor built on sedlib"
+version = "0.1.0-dev"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+website = "https://github.com/bracke/sed"
+long-description = "sed is an Ada 2022 command-line stream editor targeting POSIX sed. The executable owns invocation parsing, script provenance, the logical input stream, standard and named output, localized diagnostics and process status. sedlib is the sole sed-language parser and execution engine, and regexp is the sole regular-expression engine."
+tags = ["sed", "cli", "text-processing", "posix"]
+project-files = ["sed.gpr"]
+executables = ["sed"]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+sedlib = "=0.1.0-dev"
+
+[[depends-on]]
+terminal_styles = "=0.1.0-dev"
+
+[[depends-on]]
+messages = "~0.1.0"
+
+[[pins]]
+sedlib = { path = "../sedlib" }
+
+[[pins]]
+terminal_styles = { path = "../terminal_styles" }
+
+[[pins]]
+messages = { path = "../messages" }
+
+[build-profiles]
+"*" = "development"
+
+[[actions]]
+type = "test"
+command = ["alr", "--chdir", "tests", "exec", "--", "./bin/sed_tools", "test"]

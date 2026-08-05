@@ -1,0 +1,164 @@
+# Message catalogue for the sed command-line stream editor.
+#
+# Format: locale.key = ICU message string, one message per line.
+#
+# This file is the authoritative source of every user-facing string. It is
+# installed as <prefix>/share/sed/messages/catalog.txt and resolved relative to
+# the executable, so the installed program never reads it through a source-tree
+# or developer-local path. The same relative path works in the build tree,
+# where bin/ and share/ are siblings of the crate root.
+#
+# Sed data, script text, option spellings, labels, file names and source
+# excerpts are never translated: they appear only as arguments.
+
+default_locale = en
+
+# --- Diagnostic frames -----------------------------------------------------
+
+en.sed.diagnostic.with_location = {program}: {location}: {severity}: {message}
+en.sed.diagnostic.without_location = {program}: {severity}: {message}
+en.sed.diagnostic.detail = {message} ({detail})
+en.sed.diagnostic.note = {program}: {location}: {severity}: {message}
+
+en.sed.diagnostic.severity.error = error
+en.sed.diagnostic.severity.warning = warning
+en.sed.diagnostic.severity.information = note
+
+# Source locations are machine-oriented, so their numbers are plain decimals
+# rather than locale-grouped values.
+en.sed.location.path = {path}
+en.sed.location.path_line = {path}:{line}
+en.sed.location.path_line_column = {path}:{line}:{column}
+en.sed.location.expression = command line expression {index}
+en.sed.location.expression_line = command line expression {index}:{line}
+en.sed.location.expression_line_column = command line expression {index}:{line}:{column}
+
+# --- Diagnostic messages ---------------------------------------------------
+
+en.sed.error.option.unknown = unrecognized option {option}
+en.sed.error.option.missing_argument = option {option} requires an argument
+en.sed.error.option.invalid_argument = invalid argument {value} for option {option}
+en.sed.error.script.missing = no script specified
+en.sed.error.script.open_failed = cannot read script file
+en.sed.error.script.read_failed = error reading script file
+en.sed.error.script.syntax = invalid sed script
+en.sed.error.regexp.invalid = invalid regular expression
+en.sed.error.script.undefined_label = undefined label
+en.sed.error.script.duplicate_label = duplicate label
+en.sed.error.input.open_failed = cannot read input file
+en.sed.error.input.read_failed = error reading input file
+en.sed.error.output.standard_failed = error writing to standard output
+en.sed.error.output.open_failed = cannot create output file
+en.sed.error.output.write_failed = error writing output file
+en.sed.warning.resource.read_failed = error reading the file named by an r command
+en.sed.error.runtime.execution_failed = script execution failed
+en.sed.error.runtime.resource_exhausted = resource limit exceeded
+en.sed.error.runtime.missing_capability = the sed engine does not support this construct
+en.sed.error.internal.unexpected = internal error
+
+en.sed.hint.try_help = {program}: try {option} for more information
+en.sed.internal.unresolved_message = {program}: error: message {detail} could not be rendered
+
+# --- Help ------------------------------------------------------------------
+
+en.sed.help.usage.heading = Usage:
+en.sed.help.usage.positional =   sed [-n] script [file...]
+en.sed.help.usage.expressions =   sed [-n] -e script [-e script]... [-f script_file]... [file...]
+en.sed.help.usage.script_files =   sed [-n] -f script_file [-e script]... [-f script_file]... [file...]
+en.sed.help.summary = Copy each input line to standard output, applying the editing commands of the sed script.
+en.sed.help.options.heading = Options:
+en.sed.option.quiet =   -n                     suppress automatic printing of the pattern space
+en.sed.option.expression =   -e script              add the script text to the commands to run
+en.sed.option.script_file =   -f script_file         add the contents of the file to the commands to run
+en.sed.option.help =   --help                 show this help and exit
+en.sed.option.version =   --version              show version information and exit
+en.sed.option.color =   --color=auto|always|never  style diagnostics only, never sed output
+en.sed.option.terminator =   --                     end option processing
+en.sed.help.operands.heading = Operands:
+en.sed.help.operands.script = Without -e and -f, the first operand is the script and the rest are input files.
+en.sed.help.operands.files = All input operands form one logical stream: line numbers continue across files and the address $ matches only the last line of the whole stream.
+en.sed.help.operands.stdin = An operand of - names standard input. With no input operand, standard input is read.
+en.sed.help.exit.heading = Exit status:
+en.sed.help.exit.success =   0  success, or --help or --version
+en.sed.help.exit.processing =   1  script, input, output or execution failure
+en.sed.help.exit.invocation =   2  invalid invocation
+en.sed.help.exit.internal =   3  unexpected internal failure
+en.sed.help.conformance.heading = Conformance:
+en.sed.help.conformance.summary = This program targets POSIX sed. GNU extensions such as -i, -E, -r, -s, -u and -z are not implemented and are rejected as unknown options.
+
+# --- Version ---------------------------------------------------------------
+
+en.sed.version.program = {program} {version}
+en.sed.version.engine = engine {name} {version}
+en.sed.version.license = license {license}
+
+# --- Danish ----------------------------------------------------------------
+
+da.sed.diagnostic.with_location = {program}: {location}: {severity}: {message}
+da.sed.diagnostic.without_location = {program}: {severity}: {message}
+da.sed.diagnostic.detail = {message} ({detail})
+da.sed.diagnostic.note = {program}: {location}: {severity}: {message}
+
+da.sed.diagnostic.severity.error = fejl
+da.sed.diagnostic.severity.warning = advarsel
+da.sed.diagnostic.severity.information = bemærk
+
+da.sed.location.path = {path}
+da.sed.location.path_line = {path}:{line}
+da.sed.location.path_line_column = {path}:{line}:{column}
+da.sed.location.expression = kommandolinjeudtryk {index}
+da.sed.location.expression_line = kommandolinjeudtryk {index}:{line}
+da.sed.location.expression_line_column = kommandolinjeudtryk {index}:{line}:{column}
+
+da.sed.error.option.unknown = ukendt tilvalg {option}
+da.sed.error.option.missing_argument = tilvalget {option} kræver et argument
+da.sed.error.option.invalid_argument = ugyldigt argument {value} til tilvalget {option}
+da.sed.error.script.missing = intet skript angivet
+da.sed.error.script.open_failed = kan ikke læse skriptfilen
+da.sed.error.script.read_failed = fejl ved læsning af skriptfilen
+da.sed.error.script.syntax = ugyldigt sed-skript
+da.sed.error.regexp.invalid = ugyldigt regulært udtryk
+da.sed.error.script.undefined_label = udefineret etiket
+da.sed.error.script.duplicate_label = gentaget etiket
+da.sed.error.input.open_failed = kan ikke læse inddatafilen
+da.sed.error.input.read_failed = fejl ved læsning af inddatafilen
+da.sed.error.output.standard_failed = fejl ved skrivning til standardoutput
+da.sed.error.output.open_failed = kan ikke oprette uddatafilen
+da.sed.error.output.write_failed = fejl ved skrivning af uddatafilen
+da.sed.warning.resource.read_failed = fejl ved læsning af filen som en r-kommando nævner
+da.sed.error.runtime.execution_failed = kørslen af skriptet mislykkedes
+da.sed.error.runtime.resource_exhausted = ressourcegrænsen er overskredet
+da.sed.error.runtime.missing_capability = sed-motoren understøtter ikke denne konstruktion
+da.sed.error.internal.unexpected = intern fejl
+
+da.sed.hint.try_help = {program}: prøv {option} for at få flere oplysninger
+da.sed.internal.unresolved_message = {program}: fejl: meddelelsen {detail} kunne ikke gengives
+
+da.sed.help.usage.heading = Brug:
+da.sed.help.usage.positional =   sed [-n] skript [fil...]
+da.sed.help.usage.expressions =   sed [-n] -e skript [-e skript]... [-f skriptfil]... [fil...]
+da.sed.help.usage.script_files =   sed [-n] -f skriptfil [-e skript]... [-f skriptfil]... [fil...]
+da.sed.help.summary = Kopiér hver inddatalinje til standardoutput, og anvend sed-skriptets redigeringskommandoer.
+da.sed.help.options.heading = Tilvalg:
+da.sed.option.quiet =   -n                     undertryk automatisk udskrift af mønsterrummet
+da.sed.option.expression =   -e skript              føj skriptteksten til kommandoerne der skal køres
+da.sed.option.script_file =   -f skriptfil           føj filens indhold til kommandoerne der skal køres
+da.sed.option.help =   --help                 vis denne hjælp og afslut
+da.sed.option.version =   --version              vis versionsoplysninger og afslut
+da.sed.option.color =   --color=auto|always|never  farvelæg kun diagnostik, aldrig sed-uddata
+da.sed.option.terminator =   --                     afslut behandling af tilvalg
+da.sed.help.operands.heading = Operander:
+da.sed.help.operands.script = Uden -e og -f er den første operand skriptet, og resten er inddatafiler.
+da.sed.help.operands.files = Alle inddataoperander udgør én logisk strøm: linjenumre fortsætter på tværs af filer, og adressen $ passer kun på den sidste linje i hele strømmen.
+da.sed.help.operands.stdin = En operand på - betyder standardinput. Uden inddataoperand læses standardinput.
+da.sed.help.exit.heading = Afslutningsstatus:
+da.sed.help.exit.success =   0  succes, eller --help eller --version
+da.sed.help.exit.processing =   1  fejl i skript, inddata, uddata eller kørsel
+da.sed.help.exit.invocation =   2  ugyldigt kald
+da.sed.help.exit.internal =   3  uventet intern fejl
+da.sed.help.conformance.heading = Overholdelse:
+da.sed.help.conformance.summary = Dette program sigter mod POSIX sed. GNU-udvidelser som -i, -E, -r, -s, -u og -z er ikke implementeret og afvises som ukendte tilvalg.
+
+da.sed.version.program = {program} {version}
+da.sed.version.engine = motor {name} {version}
+da.sed.version.license = licens {license}

@@ -1,0 +1,49 @@
+name = "sed_tests"
+description = "AUnit test suite and Ada tooling for the sed command-line crate"
+version = "0.1.0-dev"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+project-files = ["sed_tests.gpr"]
+executables = ["sed_tests_main", "sed_tools"]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+sed = "=0.1.0-dev"
+
+[[depends-on]]
+sedlib = "=0.1.0-dev"
+
+[[depends-on]]
+aunit = "~26.0.0"
+
+[[depends-on]]
+project_tools = "~0.1.0"
+
+[[depends-on]]
+terminal_styles = "=0.1.0-dev"
+
+[[depends-on]]
+messages = "~0.1.0"
+
+[[pins]]
+sed = { path = ".." }
+
+[[pins]]
+sedlib = { path = "../../sedlib" }
+
+[[pins]]
+project_tools = { path = "../../project_tools" }
+
+[[pins]]
+terminal_styles = { path = "../../terminal_styles" }
+
+[[pins]]
+messages = { path = "../../messages" }
+
+[build-profiles]
+"*" = "development"
