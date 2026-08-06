@@ -44,6 +44,10 @@ package body Sed.Scripts.Compilation is
          Label_Count => Natural'Last,
          Label_Length => Byte_Bound,
          Expression_Bytes => Byte_Bound,
+         --  The regexp engine keeps a fixed state array, so this only lifts
+         --  sed's own bound out of the way; what a long expression finally
+         --  runs into is the engine's ceiling, reported as a diagnostic.
+         Expression_States => Natural'Last,
          Replacement_Bytes => Byte_Bound,
          Text_Operand_Bytes => Byte_Bound,
          Diagnostic_Count => Positive'Last);

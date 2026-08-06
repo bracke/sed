@@ -83,9 +83,18 @@ event and instruction bounds. The mechanism stays in place — exceeding a bound
 is still a structured `Resource_Exhausted` diagnostic, never a crash or a
 silent truncation.
 
+One bound is not the library's to raise. The regular-expression engine holds
+its compiled states in a fixed array, so a single expression is capped at a
+few thousand states — roughly one per literal character. Raising
+`Expression_Bytes` moves sed's own bound out of the way but cannot move that
+one, and an expression past it is refused with `compile-too-many-states`.
+Expressions of that size do not occur in ordinary scripts; the case that finds
+it is a deliberate stress test such as `madding.sed` in the GNU sed suite,
+whose stated purpose is to overfill fixed buffers.
+
 ## Corrections made to sedlib
 
-Building this program surfaced four defects and one missing capability. Each
+Building this program surfaced seven defects and one missing capability. Each
 was fixed in `sedlib`, with tests added there:
 
 * The POSIX multiline `a\`, `i\` and `c\` forms were not implemented; only the
@@ -96,8 +105,42 @@ was fixed in `sedlib`, with tests added there:
   limit, so raising that limit turned substitution into a stack overflow.
 * The hold space started unterminated, so `x`, `g` and `G` on an untouched
   hold space produced no line and `sed G` did not double-space a file.
+* Blanks between an address and its command were a syntax error, so `1 p` and
+  `/re/ d` were refused. POSIX allows them on either side of the `!`, and real
+  scripts use them to line commands up under their addresses.
+* A backslash before an ordinary character in a substitution replacement was
+  reported as an invalid escape. POSIX leaves the case undefined and every
+  implementation takes the character literally, so `s/x/\./` has to yield a
+  full stop rather than a diagnostic.
+* `Compile_Limits.Expression_Bytes` never reached the regular-expression
+  engine, whose own default of 256 bytes was therefore the bound that
+  actually applied. A caller raising the declared limit saw no effect.
+  `Expression_States` was added alongside it, because the engine bounds the
+  compiled state count as well as the length.
 * `Sedlib.Options.Regexp_Dialect` was added, giving callers POSIX basic
   regular expressions. The default is unchanged, so no existing caller moves.
+
+## Known limits in the engine
+
+Two findings belong to `regexp` rather than here, and neither is fixed:
+
+* **A compiled expression is capped at 512 states**, roughly one per literal
+  character. The state array is fixed, and every state holds a 256-byte
+  character set, so 512 states already cost about 143 kB in a value that is
+  copied. Pooling the sets shrinks a state enough to lift the cap, but the
+  working arrays of the capture-aware matcher are sized by the same constant
+  and cleared at every scan position, so raising it to 4096 measured eight
+  times slower on substitution. Lifting the cap therefore has to wait until
+  those buffers are scaled by the expression's actual state count.
+* **Substitution runs at roughly 80 kB/s**, about forty times slower than the
+  same expression used as an address. `Replace_Impl` goes through
+  `Find_From_With_Captures`, whose `Capture_Thread_Set` — 512 entries of about
+  136 bytes — is cleared once per scan position and again per character step,
+  so the cost is dominated by clearing tens of kilobytes per input byte. An
+  address match uses the plain matcher and does none of it. The fix is to
+  clear only `1 .. Expression.State_Count` and to hoist the buffers into
+  `Find_From_With_Captures` so they are initialised once per search rather
+  than once per starting position.
 
 ## Required future library changes
 
