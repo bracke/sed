@@ -17,6 +17,7 @@ cd tests && ./bin/sed_tools <command>
 | `test` | Builds, runs the AUnit suite, then checks administrative output. |
 | `verify` | Runs `test`, then audits the repository. |
 | `docs` | Runs the built executable's `--version` and `--help`. |
+| `prove` | Runs GNATprove over the declared proof scope; skips if the prover is absent. |
 | `clean` | Removes project-owned generated artifacts only. |
 | `release` | Runs `verify`, then applies the release gate. |
 
@@ -38,6 +39,16 @@ With no argument, `sed_tools` runs `verify`.
 * **Documentation presence** — every document the project promises exists.
 * **Gap traceability** — every gap identifier in `doc/posix-conformance.md`
   has a test that reproduces it.
+* **Layering** — only the packages doc/architecture.md names may import
+  sedlib, the message catalogue, the terminal, Ada.Text_IO or the argument
+  vector; the command line and the I/O layers import none of them.
+* **Template arguments** — every placeholder in a message template is an
+  argument the diagnostic actually supplies.
+* **Traceability** — every requirement, command and diagnostic code cites a
+  test, and every cited test exists.
+* **Generated files** — nothing under obj, bin, lib, alire, config or dist is
+  tracked in git.
+* **Proof** — the status accumulator, including its monotonicity contract.
 
 ## Clean safety
 

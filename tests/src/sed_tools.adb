@@ -45,6 +45,7 @@ procedure Sed_Tools is
    procedure Do_Docs;
    procedure Do_Test;
    procedure Do_Verify;
+   procedure Do_Prove;
    procedure Do_Clean;
    procedure Do_Release;
 
@@ -727,6 +728,35 @@ procedure Sed_Tools is
          = (Gaps'Length = 0),
          "the conformance document agrees about open gaps");
 
+      --  Generated files are build output and must never be committed: a
+      --  tracked one goes stale silently and then contradicts the sources it
+      --  was generated from.
+      declare
+         Generated : constant Files.Name_List :=
+           [U.To_Unbounded_String ("obj/"),
+            U.To_Unbounded_String ("bin/"),
+            U.To_Unbounded_String ("lib/"),
+            U.To_Unbounded_String ("alire/"),
+            U.To_Unbounded_String ("config/"),
+            U.To_Unbounded_String ("dist/")];
+
+         Listing : constant String := Files.Join (Root, "dist-tracked.txt");
+      begin
+         if Processes.Run_Shell_In_Directory
+              (Root, "git ls-files > " & Processes.Shell_Quote (Listing)) = 0
+         then
+            for Prefix of Generated loop
+               Check
+                 (not Files.File_Contains (Listing, U.To_String (Prefix)),
+                  "no tracked file lives under " & U.To_String (Prefix));
+            end loop;
+
+            Files.Delete_File_If_Present (Listing);
+         end if;
+      end;
+
+      Do_Prove;
+
       --  Every documented gap must have a test that reproduces it, so a gap
       --  cannot quietly outlive the behaviour it describes.
       for Gap of Gaps loop
@@ -741,6 +771,66 @@ procedure Sed_Tools is
             U.To_String (Gap) & " has a reproducing test");
       end loop;
    end Do_Verify;
+
+   ---------------
+   -- Do_Prove --
+   ---------------
+
+   procedure Do_Prove is
+      --  Invoked through Alire: the prover needs the same project environment
+      --  the build gets, and finds no project without it.
+      Launcher : constant String := Processes.Locate_Command ("alr");
+      Program : constant String :=
+        (if Processes.Locate_Command ("gnatprove")'Length = 0
+         then "" else Launcher);
+   begin
+      if Program'Length = 0 then
+         --  Proof is an optional scope: a host without the prover still runs
+         --  every other check rather than failing for a missing tool.
+         Note ("gnatprove is not installed; skipping the proof scope");
+         return;
+      end if;
+
+      Note ("proving the status accumulator");
+
+      --  Sed.Status is the package worth proving: it is pure logic, and its
+      --  contract is the invariant the whole program depends on -- that a
+      --  later success can never lower an outcome an earlier failure raised.
+      --  The stream and filesystem adapters are deliberately out of scope.
+      --
+      --  The result is read from the reported messages rather than from the
+      --  exit status. gnatprove analyses the whole project even when asked
+      --  about one unit, so its status reflects units that carry no SPARK
+      --  contracts at all; what matters here is that nothing in the declared
+      --  scope is left unproved. With --report=fail a clean scope reports
+      --  nothing.
+      declare
+         Report : constant String := Files.Join (Root, "proof-report.txt");
+         Ran : constant Integer :=
+           Processes.Run_Shell_In_Directory
+             (Root,
+              Processes.Shell_Quote (Program) & " exec -- gnatprove"
+              & " -P sed.gpr --level=1"
+              & " --mode=all -u sed-status.adb --report=fail > "
+              & Processes.Shell_Quote (Report) & " 2>&1");
+         pragma Unreferenced (Ran);
+
+         Output : constant String :=
+           (if Files.File_Exists (Report)
+            then Files.Read_Raw_File (Report)
+            else "");
+      begin
+         Check
+           (Output'Length > 0, "the prover produced a report");
+         Check
+           (not Occurs (Output, ": medium:")
+              and then not Occurs (Output, ": high:")
+              and then not Occurs (Output, ": error:"),
+            "the status accumulator proves, including monotonicity");
+
+         Files.Delete_File_If_Present (Report);
+      end;
+   end Do_Prove;
 
    --------------
    -- Do_Clean --
@@ -1037,13 +1127,16 @@ begin
       Do_Verify;
    elsif Command = "docs" then
       Do_Docs;
+   elsif Command = "prove" then
+      Do_Prove;
    elsif Command = "clean" then
       Do_Clean;
    elsif Command = "release" then
       Do_Release;
    else
       IO.Put_Line
-        ("usage: sed_tools build | test | verify | docs | clean | release");
+        ("usage: sed_tools build | test | verify | docs | prove | clean"
+         & " | release");
       Failures := Failures + 1;
    end if;
 

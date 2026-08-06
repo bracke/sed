@@ -7,7 +7,9 @@
 --  Accumulation is monotonic by construction: the enumeration is ordered by
 --  precedence and Record_Outcome keeps the maximum, so a later success can
 --  never erase an earlier failure.
-package Sed.Status is
+package Sed.Status
+  with SPARK_Mode => On
+is
 
    --  Process outcome kinds, in increasing precedence order.
    type Outcome is
@@ -77,5 +79,22 @@ private
    type Accumulator is record
       Value : Outcome := Success;
    end record;
+
+   --  Completed here rather than in the body so that proof can see through
+   --  them. A prover given only the private declaration cannot relate Current
+   --  to the field it reads, and every postcondition written in terms of
+   --  Current then becomes unprovable; as expression functions they are
+   --  transparent, and the monotonicity contract on Record_Outcome follows.
+   function Initial return Accumulator
+     is ((Value => Success));
+
+   function Current (Item : Accumulator) return Outcome
+     is (Item.Value);
+
+   function Failed (Item : Accumulator) return Boolean
+     is (Item.Value /= Success);
+
+   function Status_Of (Item : Accumulator) return Exit_Status
+     is (Status_Of (Item.Value));
 
 end Sed.Status;

@@ -1,6 +1,7 @@
 with Sed_Test_Suite.Command_Line;
 with Sed_Test_Suite.Conformance;
 with Sed_Test_Suite.Process;
+with Sed_Test_Suite.Properties;
 with Sed_Test_Suite.Robustness;
 with Sed_Test_Suite.Scripts;
 
@@ -21,6 +22,7 @@ package body Sed_Test_Suite is
       Result.Add_Test (new Sed_Test_Suite.Conformance.Test_Case);
       Result.Add_Test (new Sed_Test_Suite.Robustness.Test_Case);
       Result.Add_Test (new Sed_Test_Suite.Process.Test_Case);
+      Result.Add_Test (new Sed_Test_Suite.Properties.Test_Case);
       return Result;
    end Suite;
 

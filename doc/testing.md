@@ -9,7 +9,9 @@ The suite lives in the `sed_tests` child crate and runs through AUnit.
 | `Sed_Test_Suite.Command_Line` | Option parsing, validation, structural parse results, invocation status |
 | `Sed_Test_Suite.Scripts` | Source ordering, boundaries, the source map, compile diagnostics, `w` destination discovery |
 | `Sed_Test_Suite.Conformance` | Every POSIX command, address form, substitution, transliteration, the logical input stream, `r` and `w` |
-| `Sed_Test_Suite.Robustness` | Status monotonicity, the diagnostic registry, escaping, styling, localization, failure injection, documented gaps |
+| `Sed_Test_Suite.Robustness` | Status monotonicity, the diagnostic registry, escaping, styling, localization, failure injection, engine code mapping |
+| `Sed_Test_Suite.Process` | The built executable as a real process: streams, exit status, environment, files on disk, shipped examples |
+| `Sed_Test_Suite.Properties` | Relationships that must hold for any input, over deterministically generated data |
 
 ## How tests run the program
 

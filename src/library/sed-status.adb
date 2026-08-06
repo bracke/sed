@@ -1,4 +1,6 @@
-package body Sed.Status is
+package body Sed.Status
+  with SPARK_Mode => On
+is
 
    ---------------
    -- Status_Of --
@@ -14,15 +16,6 @@ package body Sed.Status is
            when Internal_Failure   => 3);
    end Status_Of;
 
-   -------------
-   -- Initial --
-   -------------
-
-   function Initial return Accumulator is
-   begin
-      return (Value => Success);
-   end Initial;
-
    --------------------
    -- Record_Outcome --
    --------------------
@@ -33,32 +26,5 @@ package body Sed.Status is
          Item.Value := Value;
       end if;
    end Record_Outcome;
-
-   -------------
-   -- Current --
-   -------------
-
-   function Current (Item : Accumulator) return Outcome is
-   begin
-      return Item.Value;
-   end Current;
-
-   ------------
-   -- Failed --
-   ------------
-
-   function Failed (Item : Accumulator) return Boolean is
-   begin
-      return Item.Value /= Success;
-   end Failed;
-
-   ---------------
-   -- Status_Of --
-   ---------------
-
-   function Status_Of (Item : Accumulator) return Exit_Status is
-   begin
-      return Status_Of (Item.Value);
-   end Status_Of;
 
 end Sed.Status;
