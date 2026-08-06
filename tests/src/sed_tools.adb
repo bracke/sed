@@ -812,6 +812,7 @@ procedure Sed_Tools is
               Processes.Shell_Quote (Program) & " exec -- gnatprove"
               & " -P sed.gpr --level=1"
               & " --mode=all -u sed-status.adb -u sed-scripts-layout.adb"
+              & " -u sed-input-delivery.adb"
               & " --report=fail > "
               & Processes.Shell_Quote (Report) & " 2>&1");
          pragma Unreferenced (Ran);
@@ -827,7 +828,7 @@ procedure Sed_Tools is
            (not Occurs (Output, ": medium:")
               and then not Occurs (Output, ": high:")
               and then not Occurs (Output, ": error:"),
-            "the proof scope proves: status monotonicity and the source map");
+            "the proof scope proves: status, source map and input delivery");
 
          Files.Delete_File_If_Present (Report);
       end;

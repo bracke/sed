@@ -2,6 +2,8 @@ package body Sed.Input.Logical_Stream is
 
    package D renames Sed.Diagnostics;
 
+   package Delivery renames Sed.Input.Delivery;
+
    use type Sed.IO.IO_Status;
 
    --  Transfer size for pulling bytes out of an operand.
@@ -66,12 +68,10 @@ package body Sed.Input.Logical_Stream is
       Self.Handle := Sed.IO.Invalid_Handle;
       Self.Buffer := U.Null_Unbounded_String;
       Self.Source_Drained := False;
-      Self.Global := 0;
+      Self.Counters := Delivery.Start;
       Self.Local := 0;
       Self.Have_Pending := False;
       Self.Fatal := False;
-      Self.Delivered := 0;
-      Self.Final_Delivered := False;
       Self.Diagnostics := D.Empty_List;
    end Initialize;
 
@@ -221,7 +221,7 @@ package body Sed.Input.Logical_Stream is
                   end loop;
 
                   if Newline /= 0 then
-                     Self.Global := Self.Global + 1;
+                     Delivery.Assign (Self.Counters);
                      Self.Local := Self.Local + 1;
 
                      Item :=
@@ -229,7 +229,7 @@ package body Sed.Input.Logical_Stream is
                           U.To_Unbounded_String
                             (Buffered (Buffered'First .. Newline - 1)),
                         Has_Terminator => True,
-                        Global_Line => Self.Global,
+                        Global_Line => Self.Counters.Assigned,
                         Local_Line => Self.Local,
                         Source_Name => Current.Name,
                         Source_Kind => Current.Kind,
@@ -245,13 +245,13 @@ package body Sed.Input.Logical_Stream is
                   if Self.Source_Drained then
                      if Buffered'Length > 0 then
                         --  A final line without a terminator.
-                        Self.Global := Self.Global + 1;
+                        Delivery.Assign (Self.Counters);
                         Self.Local := Self.Local + 1;
 
                         Item :=
                           (Data => U.To_Unbounded_String (Buffered),
                            Has_Terminator => False,
-                           Global_Line => Self.Global,
+                           Global_Line => Self.Counters.Assigned,
                            Local_Line => Self.Local,
                            Source_Name => Current.Name,
                            Source_Kind => Current.Kind,
@@ -327,10 +327,12 @@ package body Sed.Input.Logical_Stream is
          Self.Have_Pending := True;
       else
          Item.Is_Final := True;
-         Self.Final_Delivered := True;
       end if;
 
-      Self.Delivered := Self.Delivered + 1;
+      --  The delivery contract requires a record that was read and not yet
+      --  handed over, and refuses any delivery once the final line has gone
+      --  out, so a second final line cannot be produced here.
+      Delivery.Deliver (Self.Counters, Item.Is_Final);
       Status := Record_Available;
    end Next;
 
@@ -352,7 +354,7 @@ package body Sed.Input.Logical_Stream is
 
    function Delivered_Count (Self : Stream) return Line_Number is
    begin
-      return Self.Delivered;
+      return Self.Counters.Delivered;
    end Delivered_Count;
 
    --------------------------
@@ -361,7 +363,7 @@ package body Sed.Input.Logical_Stream is
 
    function Final_Line_Delivered (Self : Stream) return Boolean is
    begin
-      return Self.Final_Delivered;
+      return Self.Counters.Final_Seen;
    end Final_Line_Delivered;
 
    -----------

@@ -1,4 +1,5 @@
 private with Ada.Containers.Vectors;
+private with Sed.Input.Delivery;
 private with Ada.Finalization;
 with Sed.Diagnostics;
 with Sed.IO;
@@ -111,8 +112,10 @@ private
       --  True once the current operand has reported end of data.
       Source_Drained : Boolean := False;
 
-      --  Line counters.
-      Global : Line_Number := 0;
+      --  Line counters. The global count, the delivered count and the
+      --  final-line flag live together in Sed.Input.Delivery, whose contracts
+      --  are what rule out a repeated line number or a second final line.
+      Counters : Sed.Input.Delivery.Counters := Sed.Input.Delivery.Start;
       Local : Line_Number := 0;
 
       --  One line of lookahead, needed to decide which line is final.
@@ -121,9 +124,6 @@ private
 
       --  Set when standard input fails, which the stream cannot recover from.
       Fatal : Boolean := False;
-
-      Delivered : Line_Number := 0;
-      Final_Delivered : Boolean := False;
 
       Diagnostics : Sed.Diagnostics.Diagnostic_List :=
         Sed.Diagnostics.Empty_List;

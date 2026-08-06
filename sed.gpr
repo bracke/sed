@@ -23,11 +23,26 @@ project Sed is
    end Builder;
 
    package Compiler is
-      for Default_Switches ("Ada") use
-        Sed_Config.Ada_Compiler_Switches &
+      Base := Sed_Config.Ada_Compiler_Switches &
         ("-gnat2022",
          "-gnatyM120",  --  Project maximum line length
          "-gnatwe");    --  Project-owned code must build warning-free
+
+      --  Contracts are checked while developing and testing, and compiled out
+      --  of a release.
+      --
+      --  Several of them are proved rather than merely written -- the status
+      --  accumulator, the source map, the input delivery protocol -- but a
+      --  proof covers the proved unit, not every call into it from code that
+      --  is outside the proof scope. Enabling the checks is what makes those
+      --  preconditions bite at the call sites too, which is where a stream
+      --  holding file handles actually uses them.
+      case Sed_Config.Build_Profile is
+         when "release" =>
+            for Default_Switches ("Ada") use Base;
+         when others =>
+            for Default_Switches ("Ada") use Base & ("-gnata");
+      end case;
    end Compiler;
 
    package Binder is
