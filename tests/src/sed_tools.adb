@@ -563,6 +563,67 @@ procedure Sed_Tools is
          end loop;
       end;
 
+      --  No catalogue key outlives its use.
+      --
+      --  The checks above run one way: every code and option must have a
+      --  message. This runs the other way, so a key whose caller was deleted
+      --  or renamed does not sit in the catalogue for a translator to keep
+      --  translating for ever.
+      declare
+         Sources : constant Files.Path_List :=
+           Files.List_Tree (Source_Root, "*.ad*");
+
+         --  Whether any production source names this key as a literal.
+         function Key_Is_Used (Key : String) return Boolean is
+         begin
+            for Path of Sources loop
+               if Files.File_Contains (U.To_String (Path), """" & Key & """")
+               then
+                  return True;
+               end if;
+            end loop;
+
+            return False;
+         end Key_Is_Used;
+
+         Catalog_Text : constant String := Files.Read_Raw_File (Catalog);
+         First : Positive := Catalog_Text'First;
+         Prefix : constant String := "en.";
+      begin
+         for Index in Catalog_Text'Range loop
+            if Catalog_Text (Index) = ASCII.LF then
+               declare
+                  Line : constant String := Catalog_Text (First .. Index - 1);
+               begin
+                  if Line'Length > Prefix'Length
+                    and then Line (Line'First .. Line'First + Prefix'Length - 1)
+                             = Prefix
+                  then
+                     --  Take the key, which runs to the space before "=".
+                     declare
+                        Stop : Natural := Line'First + Prefix'Length;
+                     begin
+                        while Stop <= Line'Last and then Line (Stop) /= ' ' loop
+                           Stop := Stop + 1;
+                        end loop;
+
+                        declare
+                           Key : constant String :=
+                             Line (Line'First + Prefix'Length .. Stop - 1);
+                        begin
+                           Check
+                             (Key_Is_Used (Key),
+                              "catalogue key " & Key & " is still used");
+                        end;
+                     end;
+                  end if;
+               end;
+
+               First := Index + 1;
+            end if;
+         end loop;
+      end;
+
       --  Help is generated from the option registry, so every registered
       --  option must have a help line in every locale.
       for Id in Sed.Command_Line.Options.Option_Id loop
