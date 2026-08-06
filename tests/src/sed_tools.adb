@@ -111,6 +111,28 @@ procedure Sed_Tools is
       return Result;
    end Split;
 
+   --  Whether Value occurs in Text.
+   function Occurs (Text : String; Value : String) return Boolean;
+
+   ------------
+   -- Occurs --
+   ------------
+
+   function Occurs (Text : String; Value : String) return Boolean is
+   begin
+      if Value'Length = 0 or else Value'Length > Text'Length then
+         return Value'Length = 0;
+      end if;
+
+      for Start in Text'First .. Text'Last - Value'Length + 1 loop
+         if Text (Start .. Start + Value'Length - 1) = Value then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Occurs;
+
    ----------
    -- Step --
    ----------
@@ -282,6 +304,118 @@ procedure Sed_Tools is
          end loop;
       end;
 
+      --  Layering. doc/architecture.md states which packages may name which
+      --  dependency; stating it is not enforcing it, and an import added in
+      --  the wrong place compiles perfectly well. These rules are the ones
+      --  that keep sedlib, the catalogue and the terminal out of layers that
+      --  must stay testable without them.
+      declare
+         Sources : constant Files.Path_List :=
+           Files.List_Tree (Source_Root, "*.ad*");
+
+         --  Only the named files may import Unit.
+         procedure Restrict (Unit : String; Allowed : String);
+
+         --  Files whose name begins with Prefix must not import Unit.
+         procedure Forbid (Prefix : String; Unit : String);
+
+         --------------
+         -- Restrict --
+         --------------
+
+         procedure Restrict (Unit : String; Allowed : String) is
+            Offenders : Natural := 0;
+         begin
+            for Path of Sources loop
+               declare
+                  Name : constant String := U.To_String (Path);
+                  Simple : constant String :=
+                    Ada.Directories.Simple_Name (Name);
+               begin
+                  if Files.File_Contains (Name, "with " & Unit)
+                    and then not Occurs (Allowed, Simple)
+                  then
+                     Offenders := Offenders + 1;
+                     IO.Put_Line ("       " & Simple & " imports " & Unit);
+                  end if;
+               end;
+            end loop;
+
+            Check (Offenders = 0, "only permitted units import " & Unit);
+         end Restrict;
+
+         ------------
+         -- Forbid --
+         ------------
+
+         procedure Forbid (Prefix : String; Unit : String) is
+            Offenders : Natural := 0;
+         begin
+            for Path of Sources loop
+               declare
+                  Name : constant String := U.To_String (Path);
+                  Simple : constant String :=
+                    Ada.Directories.Simple_Name (Name);
+               begin
+                  if Simple'Length >= Prefix'Length
+                    and then Simple (Simple'First .. Simple'First + Prefix'Length - 1)
+                             = Prefix
+                    and then Files.File_Contains (Name, "with " & Unit)
+                  then
+                     Offenders := Offenders + 1;
+                     IO.Put_Line ("       " & Simple & " imports " & Unit);
+                  end if;
+               end;
+            end loop;
+
+            Check (Offenders = 0, Prefix & "* does not import " & Unit);
+         end Forbid;
+
+      begin
+         --  The engine, the catalogue and the terminal each have exactly one
+         --  set of packages allowed to name them.
+         Restrict
+           ("Sedlib",
+            "sed-engine.ads sed-engine.adb sed-scripts-compilation.ads"
+            & " sed-scripts-compilation.adb sed-scripts-compilation-engine.ads"
+            & " sed-scripts-compilation-engine.adb sed-execution.adb"
+            & " sed-execution-environment.ads sed-execution-environment.adb");
+         Restrict ("Messages", "sed-localization.ads sed-localization.adb");
+         Restrict ("Terminal_Styles", "sed-terminal.adb");
+
+         --  Standard output belongs to the output layer, so only the process
+         --  stream adapter may reach Ada.Text_IO at all.
+         Restrict ("Ada.Text_IO", "sed-io-process_streams.adb");
+
+         --  Only the process adapters read the real argument vector.
+         Restrict
+           ("Ada.Command_Line",
+            "sed-application.adb sed-environment.adb sed_main.adb");
+
+         --  The command line opens nothing, renders nothing and knows no sed.
+         for Unit of Files.Name_List'
+           [U.To_Unbounded_String ("Sedlib"),
+            U.To_Unbounded_String ("Messages"),
+            U.To_Unbounded_String ("Terminal_Styles"),
+            U.To_Unbounded_String ("Sed.IO"),
+            U.To_Unbounded_String ("Sed.Scripts")]
+         loop
+            Forbid ("sed-command_line", U.To_String (Unit));
+         end loop;
+
+         --  Input and output carry bytes; they know nothing about the engine,
+         --  the catalogue or styling, which is what lets the execution
+         --  adapters be the only thing bridging them to sedlib.
+         for Unit of Files.Name_List'
+           [U.To_Unbounded_String ("Sedlib"),
+            U.To_Unbounded_String ("Messages"),
+            U.To_Unbounded_String ("Terminal_Styles")]
+         loop
+            Forbid ("sed-input", U.To_String (Unit));
+            Forbid ("sed-output", U.To_String (Unit));
+         end loop;
+      end;
+
       --  Every diagnostic code must resolve in every shipped locale.
       Check (Files.File_Exists (Catalog), "the message catalogue is present");
 
@@ -298,6 +432,135 @@ procedure Sed_Tools is
                "the alternate locale defines " & Key);
          end;
       end loop;
+
+      --  A template may only name arguments its diagnostic actually supplies.
+      --
+      --  A placeholder the code never sets renders as nothing, so the message
+      --  silently loses the detail it was written to carry. This is the check
+      --  that makes the parameter schema mean something at the text end as
+      --  well as at the Ada end.
+      declare
+         --  Catalogue argument name for each parameter. Mirrors the mapping
+         --  in Sed.Diagnostics.Rendering; a divergence shows up here as a
+         --  template naming an argument no code can supply.
+         function Argument_Name
+           (Name : Sed.Diagnostics.Parameter_Name) return String
+           is (case Name is
+                 when Sed.Diagnostics.Path => "path",
+                 when Sed.Diagnostics.Option => "option",
+                 when Sed.Diagnostics.Value => "value",
+                 when Sed.Diagnostics.Detail => "detail",
+                 when Sed.Diagnostics.Capability => "capability",
+                 when Sed.Diagnostics.Requirement => "requirement",
+                 when Sed.Diagnostics.Limit => "limit",
+                 when Sed.Diagnostics.Actual => "actual",
+                 when Sed.Diagnostics.Allowed => "allowed");
+
+         --  Whether Code accepts the argument spelled Argument.
+         function Accepts
+           (Code : Sed.Diagnostics.Diagnostic_Code;
+            Argument : String) return Boolean
+         is
+            Accepted : constant Sed.Diagnostics.Parameter_Set :=
+              Sed.Diagnostics.Registry.Accepted (Code);
+         begin
+            for Name in Sed.Diagnostics.Parameter_Name loop
+               if Accepted (Name) and then Argument_Name (Name) = Argument then
+                  return True;
+               end if;
+            end loop;
+
+            return False;
+         end Accepts;
+
+         Locales : constant Files.Name_List :=
+           [U.To_Unbounded_String ("en"), U.To_Unbounded_String ("da")];
+
+         Catalog_Text : constant String := Files.Read_Raw_File (Catalog);
+
+         --  The template recorded for a locale and key, or an empty string.
+         --
+         --  Read here rather than through a key/value helper: catalogue lines
+         --  are written "locale.key = message", and a helper that expects
+         --  "key=" finds nothing and silently makes this whole audit pass.
+         function Template_For (Locale : String; Key : String) return String is
+            Prefix : constant String := Locale & "." & Key & " =";
+            First : Positive := Catalog_Text'First;
+         begin
+            for Index in Catalog_Text'Range loop
+               if Catalog_Text (Index) = ASCII.LF or else Index = Catalog_Text'Last
+               then
+                  declare
+                     Stop : constant Natural :=
+                       (if Catalog_Text (Index) = ASCII.LF then Index - 1 else Index);
+                  begin
+                     if Stop - First + 1 > Prefix'Length
+                       and then Catalog_Text (First .. First + Prefix'Length - 1)
+                                = Prefix
+                     then
+                        return Catalog_Text (First + Prefix'Length .. Stop);
+                     end if;
+                  end;
+
+                  First := Index + 1;
+               end if;
+            end loop;
+
+            return "";
+         end Template_For;
+
+      begin
+         for Code in Sed.Diagnostics.Diagnostic_Code loop
+            declare
+               Key : constant String :=
+                 Sed.Diagnostics.Registry.Message_Key (Code);
+            begin
+               for Locale of Locales loop
+                  declare
+                     Template : constant String :=
+                       Template_For (U.To_String (Locale), Key);
+                     Index : Natural := Template'First;
+                  begin
+                     --  A key with no template would make the placeholder
+                     --  scan below pass by having nothing to scan.
+                     Check
+                       (Template'Length > 0,
+                        U.To_String (Locale) & "." & Key & " has a template");
+
+                     while Index <= Template'Last loop
+                        if Template (Index) = '{' then
+                           declare
+                              Stop : Natural := Index + 1;
+                           begin
+                              while Stop <= Template'Last
+                                and then Template (Stop) /= '}'
+                              loop
+                                 Stop := Stop + 1;
+                              end loop;
+
+                              if Stop <= Template'Last then
+                                 declare
+                                    Argument : constant String :=
+                                      Template (Index + 1 .. Stop - 1);
+                                 begin
+                                    Check
+                                      (Accepts (Code, Argument),
+                                       U.To_String (Locale) & "." & Key
+                                       & " names argument {" & Argument
+                                       & "}, which the code supplies");
+                                 end;
+                                 Index := Stop;
+                              end if;
+                           end;
+                        end if;
+
+                        Index := Index + 1;
+                     end loop;
+                  end;
+               end loop;
+            end;
+         end loop;
+      end;
 
       --  Help is generated from the option registry, so every registered
       --  option must have a help line in every locale.
