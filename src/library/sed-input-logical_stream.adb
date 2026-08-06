@@ -3,6 +3,7 @@ package body Sed.Input.Logical_Stream is
    package D renames Sed.Diagnostics;
 
    package Delivery renames Sed.Input.Delivery;
+   package Cursors renames Sed.Input.Cursor;
 
    use type Sed.IO.IO_Status;
 
@@ -63,8 +64,7 @@ package body Sed.Input.Logical_Stream is
       Self.Files := Files;
       Self.Standard_In := Standard_In;
       Self.Operands := Operand_Vectors.Empty_Vector;
-      Self.Current := 0;
-      Self.State := Not_Started;
+      Self.Cursor := Cursors.Starting (0);
       Self.Handle := Sed.IO.Invalid_Handle;
       Self.Buffer := U.Null_Unbounded_String;
       Self.Source_Drained := False;
@@ -82,6 +82,7 @@ package body Sed.Input.Logical_Stream is
    procedure Add_Operand (Self : in out Stream; Item : Operand) is
    begin
       Self.Operands.Append (Item);
+      Self.Cursor := Cursors.Starting (Natural (Self.Operands.Length));
    end Add_Operand;
 
    ---------------------
@@ -90,7 +91,7 @@ package body Sed.Input.Logical_Stream is
 
    procedure Advance_Operand (Self : in out Stream) is
    begin
-      if Self.State = Open_For_Reading
+      if Self.Cursor.Opened
         and then Sed.IO.Is_Open (Self.Handle)
       then
          Self.Files.Close_Input (Self.Handle);
@@ -100,8 +101,7 @@ package body Sed.Input.Logical_Stream is
       Self.Buffer := U.Null_Unbounded_String;
       Self.Source_Drained := False;
       Self.Local := 0;
-      Self.Current := Self.Current + 1;
-      Self.State := Not_Started;
+      Cursors.Advance (Self.Cursor);
    end Advance_Operand;
 
    ------------
@@ -112,7 +112,7 @@ package body Sed.Input.Logical_Stream is
       Block : String (1 .. Chunk_Size);
       Last : Natural;
       Result : Sed.IO.IO_Result;
-      Item : constant Operand := Self.Operands (Self.Current);
+      Item : constant Operand := Self.Operands (Self.Cursor.Index);
       Name : constant String := U.To_String (Item.Name);
    begin
       Progressed := False;
@@ -166,24 +166,23 @@ package body Sed.Input.Logical_Stream is
             return;
          end if;
 
-         if Self.Current = 0 then
-            Self.Current := 1;
-            Self.State := Not_Started;
+         if Self.Cursor.Index = 0 then
+            Cursors.Begin_Sequence (Self.Cursor);
          end if;
 
-         if Self.Current > Natural (Self.Operands.Length) then
+         if Cursors.Exhausted (Self.Cursor) then
             return;
          end if;
 
          declare
-            Current : constant Operand := Self.Operands (Self.Current);
+            Current : constant Operand := Self.Operands (Self.Cursor.Index);
             Name : constant String := U.To_String (Current.Name);
          begin
             --  Open the operand the first time it is needed, never earlier.
-            if Self.State = Not_Started then
+            if not Self.Cursor.Opened then
                case Current.Kind is
                   when Standard_Input =>
-                     Self.State := Open_For_Reading;
+                     Cursors.Open (Self.Cursor);
 
                   when Named_File =>
                      declare
@@ -201,7 +200,7 @@ package body Sed.Input.Logical_Stream is
                            goto Continue_Loop;
                         end if;
 
-                        Self.State := Open_For_Reading;
+                        Cursors.Open (Self.Cursor);
                      end;
                end case;
             end if;
@@ -379,7 +378,6 @@ package body Sed.Input.Logical_Stream is
       end if;
 
       Self.Handle := Sed.IO.Invalid_Handle;
-      Self.State := Exhausted;
       Self.Buffer := U.Null_Unbounded_String;
       Self.Have_Pending := False;
    end Close;

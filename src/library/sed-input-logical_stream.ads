@@ -1,4 +1,5 @@
 private with Ada.Containers.Vectors;
+private with Sed.Input.Cursor;
 private with Sed.Input.Delivery;
 private with Ada.Finalization;
 with Sed.Diagnostics;
@@ -90,21 +91,16 @@ private
    package Operand_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Operand);
 
-   --  How far the stream has got with the operand it is currently reading.
-   type Operand_State is
-     (Not_Started,
-      Open_For_Reading,
-      Exhausted);
-
    type Stream is limited new Ada.Finalization.Limited_Controlled with record
       Files : access Sed.IO.Filesystem_Interface'Class := null;
       Standard_In : access Sed.IO.Input_Source_Interface'Class := null;
 
       Operands : Operand_Vectors.Vector := Operand_Vectors.Empty_Vector;
 
-      --  Index of the operand being read; zero before the first one starts.
-      Current : Natural := 0;
-      State : Operand_State := Not_Started;
+      --  Which operand is being read, and whether it has been opened. The
+      --  contracts on Sed.Input.Cursor are what keep the walk ordered, open
+      --  each operand at most once, and guarantee it ends.
+      Cursor : Sed.Input.Cursor.Position := Sed.Input.Cursor.Starting (0);
       Handle : Sed.IO.File_Handle := Sed.IO.Invalid_Handle;
 
       --  Bytes read from the current operand but not yet split into lines.

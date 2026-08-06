@@ -50,8 +50,9 @@ With no argument, `sed_tools` runs `verify`.
   tracked in git.
 * **Proof** — the declared SPARK scope: the status accumulator including its
   monotonicity contract, the source map arithmetic that decides which script
-  source a diagnostic names, and the input delivery protocol that rules out a
-  repeated line number or a second final line.
+  source a diagnostic names, the input delivery protocol that rules out a
+  repeated line number or a second final line, and the operand walk that
+  opens each input at most once and always terminates.
 
 ## Clean safety
 
