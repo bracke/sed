@@ -507,6 +507,62 @@ package body Sed_Test_Suite.Process is
       end;
    end Status_Aggregation;
 
+   --  EXAMPLE-001: every shipped example still does what it claims.
+   --
+   --  The recorded outputs in tests/fixtures were taken from a reference sed
+   --  rather than from this program, so they are ground truth: an example
+   --  that regressed here fails rather than quietly re-recording itself.
+
+   procedure Examples_Produce_Recorded_Output
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Work : constant String := Workspace ("examples");
+
+      Names : constant array (1 .. 4) of U.Unbounded_String :=
+        [U.To_Unbounded_String ("double-space"),
+         U.To_Unbounded_String ("reverse-lines"),
+         U.To_Unbounded_String ("squeeze-blank"),
+         U.To_Unbounded_String ("strip-trailing-blanks")];
+
+      Input : constant String := Files.Read_Raw_File ("fixtures/input.txt");
+   begin
+      Assert (Input'Length > 0, "EXAMPLE-001 the shared input fixture exists");
+      Files.Write_Raw_File (Files.Join (Work, "input.txt"), Input);
+
+      for Name of Names loop
+         declare
+            Simple : constant String := U.To_String (Name);
+            Script : constant String := "../examples/" & Simple & ".sed";
+            Expected : constant String :=
+              Files.Read_Raw_File ("fixtures/" & Simple & ".expected");
+         begin
+            Assert
+              (Files.File_Exists (Script),
+               "EXAMPLE-001 " & Simple & ".sed is shipped");
+            Assert
+              (Expected'Length > 0,
+               "EXAMPLE-001 " & Simple & " has a recorded output");
+
+            Files.Write_Raw_File
+              (Files.Join (Work, Simple & ".sed"),
+               Files.Read_Raw_File (Script));
+
+            declare
+               Result : constant Process_Result :=
+                 Run (Work, "-f " & Simple & ".sed input.txt");
+            begin
+               Assert
+                 (Result.Status = 0,
+                  "EXAMPLE-001 " & Simple & " runs cleanly");
+               Assert
+                 (U.To_String (Result.Output) = Expected,
+                  "EXAMPLE-001 " & Simple & " produces its recorded output");
+            end;
+         end;
+      end loop;
+   end Examples_Produce_Recorded_Output;
+
    overriding procedure Register_Tests (Test : in out Test_Case) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -546,6 +602,9 @@ package body Sed_Test_Suite.Process is
       Register_Routine
         (Test, Status_Aggregation'Access,
          "PROC-STATUS-001 status aggregation");
+      Register_Routine
+        (Test, Examples_Produce_Recorded_Output'Access,
+         "EXAMPLE-001 shipped examples");
    end Register_Tests;
 
 end Sed_Test_Suite.Process;
