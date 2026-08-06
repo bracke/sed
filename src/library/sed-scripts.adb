@@ -1,3 +1,5 @@
+with Sed.Scripts.Layout;
+
 package body Sed.Scripts is
 
    --  Count newline bytes in Value.
@@ -100,24 +102,38 @@ package body Sed.Scripts is
    -------------
 
    function Unit_At (Set : Source_Set; Offset : Natural) return Natural is
+      Count : constant Natural := Natural (Set.Units.Length);
    begin
-      if Set.Units.Is_Empty then
+      if Count = 0 then
          return 0;
       end if;
 
-      for Index in 1 .. Natural (Set.Units.Length) loop
-         declare
-            Item : Source_Unit renames Set.Units (Index);
-         begin
-            if Offset < Item.Start_Offset + Item.Span then
-               return Index;
-            end if;
-         end;
-      end loop;
+      --  The search itself is proved in Sed.Scripts.Layout, over a placement
+      --  table rather than over the vector and text that hold the sources.
+      --  Building that table here is what lets the arithmetic that decides
+      --  which -e expression a diagnostic names be machine-checked, while
+      --  the containers stay outside the proof scope.
+      declare
+         Placements : Layout.Placement_Array (1 .. Count);
+      begin
+         for Index in 1 .. Count loop
+            declare
+               Item : Source_Unit renames Set.Units (Index);
+            begin
+               Placements (Index) :=
+                 (Start_Offset => Item.Start_Offset,
+                  Span => Item.Span,
+                  Start_Line => Item.Start_Line,
+                  Line_Span => Line_Number'Max (1, Item.Line_Span));
+            end;
+         end loop;
 
-      --  An offset at or past the end of the combined script belongs to the
-      --  final unit; sedlib reports end-of-script errors that way.
-      return Natural (Set.Units.Length);
+         --  Append maintains the tiling, so the precondition holds; the
+         --  assertion says so where a reader can see it.
+         pragma Assert (Layout.Is_Contiguous (Placements));
+
+         return Layout.Unit_At (Placements, Offset);
+      end;
    end Unit_At;
 
    ------------

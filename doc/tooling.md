@@ -48,7 +48,9 @@ With no argument, `sed_tools` runs `verify`.
   test, and every cited test exists.
 * **Generated files** — nothing under obj, bin, lib, alire, config or dist is
   tracked in git.
-* **Proof** — the status accumulator, including its monotonicity contract.
+* **Proof** — the declared SPARK scope: the status accumulator including its
+  monotonicity contract, and the source map arithmetic that decides which
+  script source a diagnostic names.
 
 ## Clean safety
 

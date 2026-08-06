@@ -791,7 +791,7 @@ procedure Sed_Tools is
          return;
       end if;
 
-      Note ("proving the status accumulator");
+      Note ("proving the declared scope");
 
       --  Sed.Status is the package worth proving: it is pure logic, and its
       --  contract is the invariant the whole program depends on -- that a
@@ -811,7 +811,8 @@ procedure Sed_Tools is
              (Root,
               Processes.Shell_Quote (Program) & " exec -- gnatprove"
               & " -P sed.gpr --level=1"
-              & " --mode=all -u sed-status.adb --report=fail > "
+              & " --mode=all -u sed-status.adb -u sed-scripts-layout.adb"
+              & " --report=fail > "
               & Processes.Shell_Quote (Report) & " 2>&1");
          pragma Unreferenced (Ran);
 
@@ -826,7 +827,7 @@ procedure Sed_Tools is
            (not Occurs (Output, ": medium:")
               and then not Occurs (Output, ": high:")
               and then not Occurs (Output, ": error:"),
-            "the status accumulator proves, including monotonicity");
+            "the proof scope proves: status monotonicity and the source map");
 
          Files.Delete_File_If_Present (Report);
       end;
