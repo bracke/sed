@@ -140,25 +140,25 @@ now.
 
 ## Known limits in the engine
 
-Two findings belong to `regexp` rather than here, and neither is fixed:
+One finding belongs to `regexp` rather than here, and it is not fixed:
 
 * **A compiled expression is capped at 512 states**, roughly one per literal
   character. The state array is fixed, and every state holds a 256-byte
   character set, so 512 states already cost about 143 kB in a value that is
-  copied. Pooling the sets shrinks a state enough to lift the cap, but the
-  working arrays of the capture-aware matcher are sized by the same constant
-  and cleared at every scan position, so raising it to 4096 measured eight
-  times slower on substitution. Lifting the cap therefore has to wait until
-  those buffers are scaled by the expression's actual state count.
-* **Substitution runs at roughly 80 kB/s**, about forty times slower than the
-  same expression used as an address. `Replace_Impl` goes through
-  `Find_From_With_Captures`, whose `Capture_Thread_Set` — 512 entries of about
-  136 bytes — is cleared once per scan position and again per character step,
-  so the cost is dominated by clearing tens of kilobytes per input byte. An
-  address match uses the plain matcher and does none of it. The fix is to
-  clear only `1 .. Expression.State_Count` and to hoist the buffers into
-  `Find_From_With_Captures` so they are initialised once per search rather
-  than once per starting position.
+  copied. Pooling the sets would shrink a state enough to lift the cap; what
+  used to make that a bad trade — the matcher's working arrays were sized by
+  the same constant, so raising it to 4096 measured eight times slower on
+  substitution — no longer applies, since those arrays are now bounded by the
+  expression's own state count. Lifting the cap is a change to `regexp`'s
+  compiled representation and has not been made.
+
+The substitution speed recorded here previously has been fixed in `regexp`.
+`Replace_Impl` goes through the capture-aware matcher, which rebuilt working
+stores sized by the state ceiling at every position a search tried; the queue
+of capture sets it kept was redundant, and the rest is now supplied by the
+caller and touched only over the states the expression has. Substitution over
+a 166 kB file went from 2.33 to 0.45 seconds, of which about 0.20 is this
+program's own reading and writing.
 
 ## Required future library changes
 
