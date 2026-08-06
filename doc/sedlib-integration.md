@@ -94,8 +94,9 @@ whose stated purpose is to overfill fixed buffers.
 
 ## Corrections made to sedlib
 
-Building this program surfaced seven defects and one missing capability. Each
-was fixed in `sedlib`, with tests added there:
+Building this program, and running it against the GNU sed test suite, surfaced
+eleven defects and one missing capability. Each was fixed in `sedlib`, with
+tests added there:
 
 * The POSIX multiline `a\`, `i\` and `c\` forms were not implemented; only the
   one-line extension was accepted.
@@ -117,8 +118,25 @@ was fixed in `sedlib`, with tests added there:
   actually applied. A caller raising the declared limit saw no effect.
   `Expression_States` was added alongside it, because the engine bounds the
   compiled state count as well as the length.
+* A delimiter inside a bracket expression ended the expression, so `/[/]/d`
+  and `s/[/]/:/` were refused. `dc.sed` writes `/|?!*[-+*/%^<>=]/`, where the
+  slash both delimits and is a member.
+* An address preceded by blanks was not recognised, so no indented script
+  compiled: the scanner met a blank, reported no address, and read the leading
+  `/` of the address as a command.
+* `N` at the end of the input wrote the pattern space. POSIX has it quit
+  without writing, which is why the `$!N` idiom exists.
+* `l` did not fold long lines and escaped bytes in hexadecimal, where POSIX
+  requires folding and a three-digit octal number. Its output is now
+  byte-identical to the reference implementation over every byte value.
 * `Sedlib.Options.Regexp_Dialect` was added, giving callers POSIX basic
   regular expressions. The default is unchanged, so no existing caller moves.
+
+One defect belonged to `regexp`: inside a character class the parser tested
+the unescaped character for `p` or `P` and read it as the start of a Unicode
+property, so every set holding a literal `p` -- `[dp]`, `[pq]`, `[^p]` --
+failed to compile. The property form is recognised on the escaped character
+now.
 
 ## Known limits in the engine
 

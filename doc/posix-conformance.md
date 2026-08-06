@@ -122,6 +122,16 @@ takes the character literally, which never invents a metacharacter.
 | Arbitrary and escaped delimiters | Conforming | SUB-001 |
 | Empty replacement, no-match | Conforming | SUB-001 |
 | Substitution success drives `t` | Conforming | CMD-BRANCH-001 |
+| `\<ordinary>` in a replacement | Conforming | SUB-001 |
+
+A backslash before an ordinary character in a replacement stands for that
+character, so `s/x/\./` writes a full stop and `s/x/\t/` writes a `t`. POSIX
+leaves the case undefined and this is the traditional reading; `\n` for a
+newline is the one exception every implementation makes, and it is kept. GNU
+sed additionally reads `\t` as a tab, and does so even under `--posix`, so a
+script written for GNU and relying on `\t` produces a `t` here. That is the
+only place where this program knowingly differs from GNU sed's output on a
+script POSIX defines.
 
 ## Input, output and status
 
