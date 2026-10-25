@@ -139,7 +139,7 @@ package body Sed.IO.Filesystem is
       File := new Stream_IO.File_Type;
 
       begin
-         Stream_IO.Open (File.all, Stream_IO.In_File, Path);
+         Stream_IO.Open (File.all, Stream_IO.In_File, Path, Form => "shared=no");
       exception
          when Ada.IO_Exceptions.Name_Error =>
             Free (File);
@@ -327,7 +327,7 @@ package body Sed.IO.Filesystem is
       File := new Stream_IO.File_Type;
 
       begin
-         Stream_IO.Create (File.all, Stream_IO.Out_File, Path);
+         Stream_IO.Create (File.all, Stream_IO.Out_File, Path, Form => "shared=no");
       exception
          when Ada.IO_Exceptions.Name_Error =>
             Free (File);
